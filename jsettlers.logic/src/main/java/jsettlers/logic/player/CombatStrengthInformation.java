@@ -51,6 +51,7 @@ public class CombatStrengthInformation implements ICombatStrengthInformation {
 		float totalMoralAmount = moral + START_AMOUNT[Math.min(START_AMOUNT.length, numberOfPlayers) - 1];
 		float newCombatStrength = ((float) Math.log(totalMoralAmount)) / MORAL_DIVISOR;
 
+		newCombatStrength = newCombatStrength * 3;
 		this.combatStrength = newCombatStrength;
 		this.combatStrengthOwnGround = Math.max(newCombatStrength, Constants.COMBAT_STRENGTH_OWN_GROUND);
 	}
