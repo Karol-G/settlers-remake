@@ -28,7 +28,7 @@ public final class Constants {
 
 	public static boolean FOG_OF_WAR_DEFAULT_ENABLED = true;
 
-	public static final float COMBAT_STRENGTH_OWN_GROUND = 1;
+	public static final float COMBAT_STRENGTH_OWN_GROUND = 0;
 
 	/**
 	 * private constructor, because no instances of this class can be created.
