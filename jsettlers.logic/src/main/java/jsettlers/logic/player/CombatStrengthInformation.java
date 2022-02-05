@@ -25,7 +25,7 @@ import jsettlers.logic.constants.Constants;
 public class CombatStrengthInformation implements ICombatStrengthInformation {
 	private static final float[] START_AMOUNT = { 29, 22, 14, 10.25f, 8, 6, 5, 4.7f, 4.2f, 3.8f, 3.3f, 3.1f, 2.9f, 2.7f, 2.6f, 2.4f, 2.3f, 2.2f, 2.1f,
 			2, 1.9f, 1.8f, 1.7f, 1.6f, 1.5f, 1.4f, 1.3f, 1.2f, 1.1f };
-	private static final float MORAL_DIVISOR = (float) (Math.log(2) * 9);
+	private static final float MORAL_DIVISOR = (float) (Math.log(2) * 17);
 
 	private float combatStrength;
 	private float combatStrengthOwnGround;
