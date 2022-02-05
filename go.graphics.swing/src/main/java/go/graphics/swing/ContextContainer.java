@@ -1,5 +1,7 @@
 package go.graphics.swing;
 
+import go.graphics.swing.vulkan.AbstractVulkanOutput;
+import go.graphics.swing.vulkan.VulkanSurfaceOutput;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GLCapabilities;
 import org.lwjgl.vulkan.VkInstance;
@@ -17,20 +19,18 @@ import go.graphics.event.GOEventHandlerProvider;
 import go.graphics.swing.contextcreator.BackendSelector;
 import go.graphics.swing.contextcreator.ContextCreator;
 import go.graphics.swing.contextcreator.EBackendType;
-import go.graphics.swing.contextcreator.EGLContextCreator;
 import go.graphics.swing.contextcreator.JAWTContextCreator;
 import go.graphics.swing.contextcreator.ContextException;
-import go.graphics.swing.contextcreator.VulkanContextCreator;
 import go.graphics.swing.opengl.LWJGLDrawContext;
 import go.graphics.swing.vulkan.VulkanDrawContext;
-import java8.util.function.Supplier;
 
 public abstract class ContextContainer extends JPanel implements GOEventHandlerProvider {
 
 
-	protected ContextCreator cc;
+	protected ContextCreator<?> cc;
 	protected GLDrawContext context;
-	private boolean debug;
+	private AbstractVulkanOutput vkOutput;
+	private final boolean debug;
 	protected float guiScale = 0;
 
 	public ContextContainer(EBackendType backend, LayoutManager layout, boolean debug) {
@@ -64,36 +64,34 @@ public abstract class ContextContainer extends JPanel implements GOEventHandlerP
 	}
 
 
-	public void wrapNewVkContext(VkInstance instance, long surface) {
+	public void wrapNewVkContext(VkInstance instance, AbstractVulkanOutput vkOutput) {
 		if(context != null) context.invalidate();
+		this.vkOutput = vkOutput;
 
 		try {
-			context = new VulkanDrawContext(instance, surface, guiScale);
+			context = new VulkanDrawContext(instance, vkOutput, guiScale);
 		} catch(Throwable thrown) {
-			fatal(thrown.getLocalizedMessage());
 			thrown.printStackTrace();
+			fatal(thrown.getLocalizedMessage());
 		}
-	}
-
-	public void wrapNewVkSurface(long surface) {
-		((VulkanDrawContext)context).setSurface(surface);
 	}
 
 	public void wrapNewGLContext() {
 		if(cc instanceof JAWTContextCreator) ((JAWTContextCreator)cc).makeCurrent(true);
 		if(context != null) context.invalidate();
+		vkOutput = null;
 
 		GLCapabilities caps = GL.createCapabilities();
 
 		try {
 			if(caps.OpenGL20) {
-				context = new LWJGLDrawContext(caps, cc::getScale, debug, guiScale);
+				context = new LWJGLDrawContext(caps, debug, guiScale);
 			} else {
 				errorGLVersion();
 			}
 		} catch(Throwable thrown) {
-			fatal(thrown.getLocalizedMessage());
 			thrown.printStackTrace();
+			fatal(thrown.getLocalizedMessage());
 		}
 	}
 
@@ -159,8 +157,8 @@ public abstract class ContextContainer extends JPanel implements GOEventHandlerP
 	}
 
 	public void removeSurface() {
-		if(cc instanceof VulkanContextCreator) {
-			((VulkanDrawContext)context).removeSurface();
+		if(vkOutput instanceof VulkanSurfaceOutput) {
+			((VulkanSurfaceOutput)vkOutput).removeSurface();
 		}
 	}
 }

@@ -24,7 +24,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
-import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,6 +48,14 @@ public class GLESDrawContext extends GLDrawContext {
 		this.context = ctx;
 		this.gles3 = gles3;
 		shaders = new ArrayList<>();
+
+		int[] textureSize = new int[1];
+		glGetIntegerv(GL_MAX_TEXTURE_SIZE, textureSize, 0);
+		maxTextureSize = textureSize[0];
+
+		int[] uniformBlockSize = new int[1];
+		glGetIntegerv(GLES30.GL_MAX_UNIFORM_BLOCK_SIZE, uniformBlockSize, 0);
+		maxUniformBlockSize = uniformBlockSize[0];
 
 		glClearColor(0, 0, 0, 1);
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
@@ -386,7 +393,7 @@ public class GLESDrawContext extends GLDrawContext {
 				float intensity = (int_mode-mode)*10-1;
 
 				glUniform1i(prog_unified.mode, mode);
-				glUniform1fv(prog_unified.color, 4, new float[] {colors[i*4], colors[i*4+1], colors[i*4+2], colors[i*4+3], intensity}, i * 4);
+				glUniform1fv(prog_unified.color, 5, new float[] {colors[i*4], colors[i*4+1], colors[i*4+2], colors[i*4+3], intensity}, 0);
 				glUniform3fv(prog_unified.trans, 2, new float[] {trans[i*4], trans[i*4+1], trans[i*4+2], 1, 1, 0}, 0);
 
 				glDrawArrays(primitive, call.offset, vertexCount);
@@ -500,23 +507,14 @@ public class GLESDrawContext extends GLDrawContext {
 				glBindAttribLocation(program, i, attributes.get(i));
 			}
 
-			glLinkProgram(program);
-			glValidateProgram(program);
+			link(name);
+
+			validate(name);
 
 			glDetachShader(program, vertexShader);
 			glDetachShader(program, fragmentShader);
 			glDeleteShader(vertexShader);
 			glDeleteShader(fragmentShader);
-
-			String log = glGetProgramInfoLog(program);
-			if(!log.isEmpty()) System.out.print("info log of " + name + "=====\n" + log + "==== end\n");
-
-			int[] link_status = new int[1];
-			glGetProgramiv(program, GL_LINK_STATUS, link_status, 0);
-			if(link_status[0] == 0) {
-				glDeleteProgram(program);
-				throw new Error("Could not link " + name);
-			}
 
 			proj = glGetUniformLocation(program, "projection");
 			global = glGetUniformLocation(program, "globalTransform");
@@ -540,13 +538,47 @@ public class GLESDrawContext extends GLDrawContext {
 			shaders.add(this);
 		}
 
+		private void link(String name) {
+			glLinkProgram(program);
+
+			String log = glGetProgramInfoLog(program);
+			if(!log.isEmpty()) System.out.print("linker info log of " + name + "=====\n" + log + "==== end\n");
+
+			int[] link_status = new int[1];
+			glGetProgramiv(program, GL_LINK_STATUS, link_status, 0);
+			if(link_status[0] == 0) {
+				glDeleteProgram(program);
+				throw new Error("Could not link " + name);
+			}
+		}
+
+		private void validate(String name) {
+			glValidateProgram(program);
+
+			String log = glGetProgramInfoLog(program);
+			if(!log.isEmpty()) System.out.print("validation info log of " + name + "=====\n" + log + "==== end\n");
+
+			int[] validate_status = new int[1];
+			glGetProgramiv(program, GL_VALIDATE_STATUS, validate_status, 0);
+			if(validate_status[0] == 0) {
+				glDeleteProgram(program);
+				throw new Error("Could not validate " + name);
+			}
+		}
+
 		private ArrayList<String> attributes = new ArrayList<>();
 
 		private final String vendor_id = "//VENDOR=" + glGetString(GL_VENDOR) + " ";
 
 		private int createShader(String name, int type) throws IOException {
+			if(gles3) {
+				name = "gles3/" + name;
+			} else {
+				name = "gles2/" + name;
+			}
+
 			StringBuilder source = new StringBuilder();
-			try(InputStream shaderFile = GLESDrawContext.class.getResourceAsStream("/go/graphics/"+name)) {
+			try(InputStream shaderFile = GLESDrawContext.class.getResourceAsStream("/go/graphics/android/" + name)) {
 				if (shaderFile == null) return -1;
 				BufferedReader is = new BufferedReader(new InputStreamReader(shaderFile));
 
@@ -554,6 +586,8 @@ public class GLESDrawContext extends GLDrawContext {
 				while ((line = is.readLine()) != null) {
 					if (line.startsWith("attribute") || line.endsWith("//attribute")) {
 						attributes.add(line.split(" ")[2].replaceAll(";", ""));
+					} else if(line.equals("//define MAX_GEOMETRY_DATA_QUAD_COUNT")) {
+						line = getManagedHandleDefine();
 					}
 
 					int vendor_index = line.indexOf(vendor_id);

@@ -18,9 +18,8 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.BitSet;
 import java.util.Set;
+import java.util.function.Supplier;
 
-import java8.util.Sets2;
-import java8.util.function.Supplier;
 import jsettlers.common.buildings.EBuildingType;
 import jsettlers.common.player.EWinState;
 import jsettlers.common.position.ShortPoint2D;
@@ -33,8 +32,6 @@ import jsettlers.logic.map.loading.original.data.OriginalProduceGoodsWinConditio
 import jsettlers.logic.map.loading.original.data.OriginalSurviveDurationWinCondition;
 import jsettlers.logic.player.Player;
 
-import static java8.util.stream.StreamSupport.stream;
-
 public class OriginalSinglePlayerWinCondition extends WinLoseHandler implements Serializable {
 	private static final long serialVersionUID = 1;
 
@@ -42,10 +39,10 @@ public class OriginalSinglePlayerWinCondition extends WinLoseHandler implements 
 	private static final byte MAIN_TEAM = 0;
 
 	private BitSet killToWin = new BitSet();
-	private Set<ShortPoint2D> conquerToWin = Sets2.of();
-	private Set<OriginalProduceGoodsWinCondition> produceToWin = Sets2.of();
-	private Set<OriginalSurviveDurationWinCondition> surviveToWin = Sets2.of();
-	private Set<OriginalDestroyBuildingsWinCondition> destroyToWin = Sets2.of();
+	private Set<ShortPoint2D> conquerToWin = Set.of();
+	private Set<OriginalProduceGoodsWinCondition> produceToWin = Set.of();
+	private Set<OriginalSurviveDurationWinCondition> surviveToWin = Set.of();
+	private Set<OriginalDestroyBuildingsWinCondition> destroyToWin = Set.of();
 
 	private transient Set<Supplier<Boolean>> winConditions;
 	private transient Set<Supplier<Boolean>> loseConditions;
@@ -57,8 +54,8 @@ public class OriginalSinglePlayerWinCondition extends WinLoseHandler implements 
 			ex.printStackTrace();
 		}
 
-		winConditions = Sets2.of(this::checkKillCondition, this::checkDestroyCondition, this::checkConquerCondition, this::checkSurviveWinCondition, this::checkProduceCondition);
-		loseConditions = Sets2.of(this::checkSurviveLoseCondition);
+		winConditions = Set.of(this::checkKillCondition, this::checkDestroyCondition, this::checkConquerCondition, this::checkSurviveWinCondition, this::checkProduceCondition);
+		loseConditions = Set.of(this::checkSurviveLoseCondition);
 	}
 
 	public OriginalSinglePlayerWinCondition(MainGrid mainGrid) {
@@ -152,10 +149,9 @@ public class OriginalSinglePlayerWinCondition extends WinLoseHandler implements 
 			byte playerId = destroyBuildings.getPlayerId();
 
 			// test failed if buildings of type by player exist
-			if(stream(Building.getAllBuildings())
+			if(Building.getAllBuildings().stream()
 					.filter(building -> building.getPlayer().playerId == playerId)
-					.filter(building -> building.getBuildingVariant().isVariantOf(buildingType))
-					.findAny().isPresent()) return false;
+					.anyMatch(building -> building.getBuildingVariant().isVariantOf(buildingType))) return false;
 		}
 
 		return true;

@@ -15,6 +15,8 @@
 package jsettlers.integration.ai;
 
 import jsettlers.logic.constants.Constants;
+import jsettlers.logic.map.loading.MapLoader;
+import jsettlers.testutils.map.MapUtils;
 import org.junit.Test;
 
 import jsettlers.common.CommonConstants;
@@ -59,17 +61,17 @@ public class AiDifficultiesIT {
 
 	@Test
 	public void easyShouldConquerVeryEasy() throws MapLoadException {
-		holdBattleBetween(EPlayerType.AI_EASY, EPlayerType.AI_VERY_EASY, civilisation, 90 * MINUTES);
+		holdBattleBetween(EPlayerType.AI_EASY, EPlayerType.AI_VERY_EASY, civilisation, 90 * MINUTES, MapUtils.getSpezialSumpf());
 	}
 
 	@Test
 	public void hardShouldConquerEasy() throws MapLoadException {
-		holdBattleBetween(EPlayerType.AI_HARD, EPlayerType.AI_EASY, civilisation, 75 * MINUTES);
+		holdBattleBetween(EPlayerType.AI_HARD, EPlayerType.AI_EASY, civilisation, 75 * MINUTES, MapUtils.getSpezialSumpf());
 	}
 
 	@Test
 	public void veryHardShouldConquerHard() throws MapLoadException {
-		holdBattleBetween(EPlayerType.AI_VERY_HARD, EPlayerType.AI_HARD, civilisation, 75 * MINUTES);
+		holdBattleBetween(EPlayerType.AI_VERY_HARD, EPlayerType.AI_HARD, civilisation, 75 * MINUTES, MapUtils.getSpezialSumpf());
 	}
 
 	@Test
@@ -78,7 +80,7 @@ public class AiDifficultiesIT {
 		PlayerSetting[] playerSettings = getDefaultPlayerSettings(12);
 		playerSettings[playerId] = new PlayerSetting(EPlayerType.AI_VERY_HARD, civilisation, playerId);
 
-		JSettlersGame.GameRunner startingGame = createStartingGame(playerSettings);
+		JSettlersGame.GameRunner startingGame = createStartingGame(playerSettings, MapUtils.getSpezialSumpf());
 		IStartedGame startedGame = ReplayUtils.waitForGameStartup(startingGame);
 
 		MatchConstants.clock().fastForwardTo(90 * MINUTES);
@@ -91,6 +93,7 @@ public class AiDifficultiesIT {
 		} else {
 			System.out.println("The ai produced " + producedSoldiers + " soldiers.");
 		}
+		ReplayUtils.awaitShutdown(startedGame);
 		ensureRuntimePerformance("to apply light rules", startingGame.getAiExecutor().getApplyLightRulesStopWatch(), 20, 250);
 		ensureRuntimePerformance("to apply heavy rules", startingGame.getAiExecutor().getApplyHeavyRulesStopWatch(), 200, 2500);
 		ensureRuntimePerformance("to update statistics", startingGame.getAiExecutor().getUpdateStatisticsStopWatch(), 100, 2500);

@@ -17,6 +17,9 @@ public abstract class GLDrawContext {
 
 	protected List<ManagedHandle> managedHandles = new ArrayList<>();
 
+	protected int maxUniformBlockSize;
+	protected int maxTextureSize;
+
 	public abstract void setShadowDepthOffset(float depth);
 
 	/**
@@ -110,23 +113,26 @@ public abstract class GLDrawContext {
 	}
 
 	private void addNewHandle() {
-		TextureHandle tex = generateTexture(ManagedHandle.TEX_DIM, ManagedHandle.TEX_DIM, null, "managed" + ManagedHandle.instance_count);
-		UnifiedDrawHandle parent = createUnifiedDrawCall(ManagedHandle.MAX_QUADS*4, "managed" + ManagedHandle.instance_count, tex, null);
-		managedHandles.add(new ManagedHandle(parent));
+		int quad_count = getMaxManagedQuads();
+		int texture_size = getMaxManagedTextureSize();
+
+		TextureHandle tex = generateTexture(texture_size, texture_size, null, "managed" + ManagedHandle.instance_count);
+		UnifiedDrawHandle parent = createUnifiedDrawCall(quad_count*4, "managed" + ManagedHandle.instance_count, tex, null);
+		managedHandles.add(new ManagedHandle(parent, quad_count, texture_size));
 	}
 
 	public ManagedUnifiedDrawHandle createManagedUnifiedDrawCall(ShortBuffer texData, float offsetX, float offsetY, int width, int height) {
 		for(ManagedHandle handle : managedHandles) {
 			int position;
-			if(handle.quad_index != ManagedHandle.MAX_QUADS && (position = handle.findTextureHole(width, height)) != -1) {
+			if(handle.quad_index != handle.quad_count && (position = handle.findTextureHole(width, height)) != -1) {
 				UIPoint corner;
 				if((corner = handle.addTexture(texData, width, height, position)) == null) continue;
 
 
 				float lu = (float) corner.getX();
 				float lv = (float) corner.getY();
-				float hu = lu + width/(float) ManagedHandle.TEX_DIM;
-				float hv = lv + height/(float) ManagedHandle.TEX_DIM;
+				float hu = lu + width/(float) handle.texture_size;
+				float hv = lv + height/(float) handle.texture_size;
 
 				float[] data = createQuadGeometry(offsetX, -offsetY, offsetX+width, -offsetY-height, lu, lv, hu, hv);
 
@@ -174,9 +180,37 @@ public abstract class GLDrawContext {
 
 	protected long frameIndex = 0;
 
+	public long getFrameIndex() {
+		return frameIndex;
+	}
+
 	public void startFrame() {
 		frameIndex++;
 	}
 
     public abstract void resize(int width, int height);
+
+	protected int getMaxManagedQuads() {
+		int maxManagedHandleQuads = maxUniformBlockSize / (4*4*4) /*size of one quad*/;
+
+		if (maxManagedHandleQuads >= ManagedHandle.MAX_QUADS) {
+			return ManagedHandle.MAX_QUADS;
+		}
+
+		return maxManagedHandleQuads;
+	}
+
+	protected int getMaxManagedTextureSize() {
+		int maxManagedHandleTextureSize = maxTextureSize;
+
+		if (maxManagedHandleTextureSize >= ManagedHandle.MAX_TEXTURE_SIZE) {
+			return ManagedHandle.MAX_TEXTURE_SIZE;
+		}
+
+		return maxManagedHandleTextureSize;
+	}
+
+	protected String getManagedHandleDefine() {
+		return "#define MAX_GEOMETRY_DATA_QUAD_COUNT " + getMaxManagedQuads();
+	}
 }

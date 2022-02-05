@@ -40,9 +40,20 @@ import jsettlers.common.position.ShortPoint2D;
 import jsettlers.common.selectable.ESelectionType;
 import jsettlers.logic.constants.Constants;
 import jsettlers.logic.constants.MatchConstants;
-import jsettlers.logic.movable.civilian.*;
 import jsettlers.logic.movable.cargo.CargoShipMovable;
 import jsettlers.logic.movable.cargo.DonkeyMovable;
+import jsettlers.logic.movable.civilian.BakerMovable;
+import jsettlers.logic.movable.civilian.BearerMovable;
+import jsettlers.logic.movable.civilian.BricklayerMovable;
+import jsettlers.logic.movable.civilian.DiggerMovable;
+import jsettlers.logic.movable.civilian.DonkeyFarmerMovable;
+import jsettlers.logic.movable.civilian.HealerMovable;
+import jsettlers.logic.movable.civilian.MelterMovable;
+import jsettlers.logic.movable.civilian.MinerMovable;
+import jsettlers.logic.movable.civilian.PigFarmerMovable;
+import jsettlers.logic.movable.civilian.SawMillerMovable;
+import jsettlers.logic.movable.civilian.SimpleBuildingWorkerMovable;
+import jsettlers.logic.movable.civilian.SmithMovable;
 import jsettlers.logic.movable.interfaces.AbstractMovableGrid;
 import jsettlers.logic.movable.interfaces.ILogicMovable;
 import jsettlers.logic.movable.military.BowmanMovable;
@@ -269,26 +280,27 @@ public abstract class Movable implements ILogicMovable, FoWTask {
 
 	private ShortPoint2D markedTarget = null;
 
-	protected static <T extends Movable> Node<T> followPresearchedPathMarkTarget() {
-		return followPresearchedPathMarkTarget(mov -> true);
-	}
-
-	protected static <T extends Movable> Node<T> followPresearchedPathMarkTarget(IBooleanConditionFunction<T> pathStep) {
+	protected static <T extends Movable> Node<T> markDuring(IShortPoint2DSupplier<T> markPosition, Node<T> child) {
 		return resetAfter(mov -> {
 					Movable mmov = mov;
 					mmov.grid.setMarked(mmov.markedTarget, false);
 					mmov.markedTarget = null;
 				},
 				sequence(
-					action(mov -> {
-						Movable mmov = mov;
-						mmov.markedTarget = mmov.path.getTargetPosition();
-						mmov.grid.setMarked(mmov.markedTarget, true);
-					}),
-					followPresearchedPath(pathStep)
+						action(mov -> {
+							Movable mmov = mov;
+							mmov.markedTarget = markPosition.apply(mov);
+							mmov.grid.setMarked(mmov.markedTarget, true);
+						}),
+						child
 				)
 		);
 	}
+
+	protected static <T extends Movable> Node<T> followPresearchedPathMarkTarget(IBooleanConditionFunction<T> pathStep) {
+		return markDuring(mov -> mov.path.getTargetPosition(), followPresearchedPath(pathStep));
+	}
+
 	protected static <T extends Movable> Node<T> followPresearchedPath() {
 		return followPresearchedPath(mov -> true);
 	}

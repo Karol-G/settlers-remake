@@ -1,5 +1,7 @@
 package go.graphics.swing.vulkan;
 
+import go.graphics.swing.vulkan.memory.VulkanImage;
+import go.graphics.swing.vulkan.memory.VulkanMemoryManager;
 import org.lwjgl.util.vma.Vma;
 import org.lwjgl.vulkan.VK10;
 import org.lwjgl.vulkan.VkDescriptorImageInfo;
@@ -10,44 +12,41 @@ import go.graphics.TextureHandle;
 
 public class VulkanTextureHandle extends TextureHandle {
 
-	private final long bfr;
-	private long imageView;
-	private final long allocation;
 	private boolean installed = false;
 	private boolean shouldDestroy = false;
+	private boolean isDestroyed = false;
 	final long descSet;
+	private final VulkanMemoryManager manager;
+	private final VulkanImage image;
 
-	public VulkanTextureHandle(VulkanDrawContext dc, int id, long bfr, long allocation, long imageView, long descSet) {
-		super(dc, id);
-		this.allocation = allocation;
-		this.imageView = imageView;
-		this.bfr = bfr;
+	public VulkanTextureHandle(VulkanDrawContext dc, VulkanMemoryManager manager, VulkanImage image, long descSet) {
+		super(dc, -1);
+		this.image = image;
 		this.descSet = descSet;
+		this.manager = manager;
 	}
 
-	public long getImageViewId() {
-		return imageView;
-	}
-
-	public long getTextureIdVk() {
-		return bfr;
-	}
-
-	public long getAllocation() {
-		return allocation;
+	public VulkanImage getImage() {
+		return image;
 	}
 
 	public void destroy() {
-		if(imageView == VK10.VK_NULL_HANDLE) return;
-
-		VK10.vkDestroyImageView(((VulkanDrawContext)dc).device, imageView, null);
-		Vma.vmaDestroyImage(((VulkanDrawContext)dc).allocators[VulkanDrawContext.TEXTUREDATA_BUFFER], bfr, allocation);
-		imageView = VK10.VK_NULL_HANDLE;
+		if(isDestroyed) return;
+		image.destroy();
+		isDestroyed = true;
 	}
 
 	@Override
 	public String toString() {
-		return getClass().getSimpleName() + " [dc=" + dc + ", allocation=" + allocation + ", bfr=" + bfr + "]";
+		return "VulkanTextureHandle{" +
+				"installed=" + installed +
+				", shouldDestroy=" + shouldDestroy +
+				", isDestroyed=" + isDestroyed +
+				", descSet=" + descSet +
+				", manager=" + manager +
+				", image=" + image +
+				", id=" + id +
+				'}';
 	}
 
 	void tick() {
@@ -77,14 +76,10 @@ public class VulkanTextureHandle extends TextureHandle {
 				.pImageInfo(install_texture_image);
 
 
-		install_texture_image.imageView(imageView)
+		install_texture_image.imageView(image.getImageView())
 				.sampler(((VulkanDrawContext) dc).samplers[getType().ordinal()]);
 
-		VK10.vkUpdateDescriptorSets(((VulkanDrawContext)dc).device, install_texture_write, null);
-	}
-
-	public void setInstalled() {
-		installed = true;
+		VK10.vkUpdateDescriptorSets(((VulkanDrawContext)dc).getDevice(), install_texture_write, null);
 	}
 
 	public void setDestroy() {
@@ -99,6 +94,6 @@ public class VulkanTextureHandle extends TextureHandle {
 
 	@Override
 	public boolean isValid() {
-		return imageView != VK10.VK_NULL_HANDLE && super.isValid();
+		return !isDestroyed && super.isValid();
 	}
 }

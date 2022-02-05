@@ -1,5 +1,5 @@
 plugins {
-	id 'com.github.johnrengelman.shadow' version '5.2.0'
+	id 'com.github.johnrengelman.shadow' version '7.1.2'
 	id 'application'
 }
 
@@ -33,7 +33,7 @@ dependencies {
 	implementation project(':jsettlers.graphics')
 	implementation project(':jsettlers.logic')
 	implementation project(':jsettlers.network')
-	implementation 'com.google.code.gson:gson:2.8.5'
+	implementation 'com.google.code.gson:gson:2.8.9'
 
 	for (String lpglDependency : lgplDependencies) {
 		lgplDeps lpglDependency

@@ -22,8 +22,8 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import java8.util.function.BiConsumer;
-import java8.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import jsettlers.common.CommonConstants;
 import jsettlers.common.logging.MilliStopWatch;
 import jsettlers.common.utils.collections.ChangingList;

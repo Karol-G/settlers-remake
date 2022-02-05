@@ -18,7 +18,7 @@ import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java8.util.function.Supplier;
+import java.util.function.Supplier;
 
 import go.graphics.AbstractColor;
 import go.graphics.BackgroundDrawHandle;
@@ -37,12 +37,12 @@ import static org.lwjgl.opengl.GL20C.*;
 
 public class LWJGLDrawContext extends GLDrawContext {
 
-	private Supplier<Float> nativeScale;
-
-	public LWJGLDrawContext(GLCapabilities glcaps, Supplier<Float> nativeScale, boolean debug, float guiScale) {
-		this.nativeScale = nativeScale;
+	public LWJGLDrawContext(GLCapabilities glcaps, boolean debug, float guiScale) {
 		this.glcaps = glcaps;
 		shaders = new ArrayList<>();
+
+		maxTextureSize = glGetInteger(GL_MAX_TEXTURE_SIZE);
+		maxUniformBlockSize = glGetInteger(GL_MAX_UNIFORM_BLOCK_SIZE);
 
 		if(debug) debugOutput = new LWJGLDebugOutput(this);
 
@@ -179,9 +179,8 @@ public class LWJGLDrawContext extends GLDrawContext {
 	}
 
 	public void resize(int width, int height) {
-		float scale = nativeScale.get();
 
-		glViewport(0, 0, (int)(width*scale), (int)(height*scale));
+		glViewport(0, 0, width, height);
 		mat.setOrtho(0, width, 0, height, -1, 1);
 		mat.get(matBfr);
 
@@ -508,8 +507,9 @@ public class LWJGLDrawContext extends GLDrawContext {
 				glBindAttribLocation(program, i, attributes.get(i));
 			}
 
-			glLinkProgram(program);
-			glValidateProgram(program);
+			link(name);
+
+			validate(name);
 
 			glDetachShader(program, vertexShader);
 			glDetachShader(program, fragmentShader);
@@ -547,13 +547,45 @@ public class LWJGLDrawContext extends GLDrawContext {
 			shaders.add(this);
 		}
 
+		private void link(String name) {
+			glLinkProgram(program);
+
+			String log = glGetProgramInfoLog(program);
+			if(!log.isEmpty()) System.out.print("linker info log of " + name + "=====\n" + log + "==== end\n");
+
+			int[] link_status = new int[1];
+			glGetProgramiv(program, GL_LINK_STATUS, link_status);
+			if(link_status[0] == 0) {
+				glDeleteProgram(program);
+				throw new Error("Could not link " + name);
+			}
+		}
+
+		private void validate(String name) {
+			glValidateProgram(program);
+
+			String log = glGetProgramInfoLog(program);
+			if(!log.isEmpty()) System.out.print("validation info log of " + name + "=====\n" + log + "==== end\n");
+
+			int[] validate_status = new int[1];
+			glGetProgramiv(program, GL_VALIDATE_STATUS, validate_status);
+			if(validate_status[0] == 0) {
+				glDeleteProgram(program);
+				throw new Error("Could not validate " + name);
+			}
+		}
+
 		private ArrayList<String> attributes = new ArrayList<>();
 
 		private int createShader(String name, int type) throws IOException {
-			if(Platform.get() == Platform.MACOSX) name = "swing/apple/" + name;
+			if(glcaps.OpenGL33) {
+				name = "gl33/" + name;
+			} else {
+				name = "gl/" + name;
+			}
 
 			StringBuilder source = new StringBuilder();
-			try(InputStream shaderFile = getClass().getResourceAsStream("/go/graphics/" + name)) {
+			try(InputStream shaderFile = getClass().getResourceAsStream("/go/graphics/swing/" + name)) {
 				if (shaderFile == null) return -1;
 				BufferedReader is = new BufferedReader(new InputStreamReader(shaderFile));
 
@@ -561,6 +593,8 @@ public class LWJGLDrawContext extends GLDrawContext {
 				while ((line = is.readLine()) != null) {
 					if (line.startsWith("attribute") || line.endsWith("//attribute")) {
 						attributes.add(line.split(" ")[2].replaceAll(";", ""));
+					} else if(line.equals("//define MAX_GEOMETRY_DATA_QUAD_COUNT")) {
+						line = getManagedHandleDefine();
 					}
 
 					source.append(line).append("\n");
