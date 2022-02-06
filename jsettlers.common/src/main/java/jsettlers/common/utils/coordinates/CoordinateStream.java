@@ -18,9 +18,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import java8.util.Optional;
-import java8.util.stream.Stream;
-import java8.util.stream.StreamSupport;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import jsettlers.common.position.ShortPoint2D;
 import jsettlers.common.utils.mutables.Mutable;
 import jsettlers.common.utils.mutables.MutableInt;
@@ -117,7 +117,7 @@ public abstract class CoordinateStream implements Serializable {
 	public <T> Stream<T> map(ICoordinateFunction<T> consumer) {
 		List<T> values = new ArrayList<>();
 		iterate((x, y) -> values.add(consumer.apply(x, y)));
-		return StreamSupport.stream(values);
+		return values.stream();
 	}
 
 	public CoordinateStream getEvery(int getIndex) {

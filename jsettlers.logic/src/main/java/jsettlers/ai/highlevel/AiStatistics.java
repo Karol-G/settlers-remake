@@ -17,6 +17,7 @@ package jsettlers.ai.highlevel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -28,12 +29,9 @@ import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
-import java8.util.Comparators;
-import java8.util.J8Arrays;
-import java8.util.Maps;
-import java8.util.Objects;
-import java8.util.Sets2;
-import java8.util.stream.Collectors;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import jsettlers.ai.highlevel.AiPositions.AiPositionFilter;
 import jsettlers.algorithms.construction.AbstractConstructionMarkableMap;
 import jsettlers.common.CommonConstants;
@@ -66,7 +64,6 @@ import jsettlers.logic.map.grid.partition.PartitionsGrid;
 import jsettlers.logic.movable.interfaces.ILogicMovable;
 import jsettlers.logic.player.Player;
 
-import static java8.util.stream.StreamSupport.stream;
 import static jsettlers.common.buildings.EBuildingType.BIG_TOWER;
 import static jsettlers.common.buildings.EBuildingType.CASTLE;
 import static jsettlers.common.buildings.EBuildingType.LUMBERJACK;
@@ -132,10 +129,10 @@ public class AiStatistics {
 			sortedResourceTypes[i] = new AiPositions();
 		}
 		resourceCountInDefaultPartition = new long[EResourceType.VALUES.length];
-		players = J8Arrays.stream(partitionsGrid.getPlayers()).filter(Objects::nonNull).collect(Collectors.toList());
+		players = Arrays.stream(partitionsGrid.getPlayers()).filter(Objects::nonNull).collect(Collectors.toList());
 
 		statisticsUpdaterPool = threadPool;
-		parallelStatisticsUpdater = Sets2.of(this::mainMapStatUpdater, this::freeLandMapStatUpdater, this::playerLandMapStatUpdater, this::movableMapStatUpdater, this::grassMapStatUpdater, this::pioneerMapStatUpdater);
+		parallelStatisticsUpdater = Set.of(this::mainMapStatUpdater, this::freeLandMapStatUpdater, this::playerLandMapStatUpdater, this::movableMapStatUpdater, this::grassMapStatUpdater, this::pioneerMapStatUpdater);
 	}
 
 	public byte getFlatternEffortAtPositionForBuilding(final ShortPoint2D position, final BuildingVariant buildingType) {
@@ -291,7 +288,7 @@ public class AiStatistics {
 			byte movablePlayerId = movablePlayer.playerId;
 			PlayerStatistic movablePlayerStatistic = playerStatistics[movablePlayerId];
 			EMovableType movableType = movable.getMovableType();
-			Maps.computeIfAbsent(movablePlayerStatistic.movablePositions, movableType, key -> new ArrayList<>()).add(movablePosition);
+			movablePlayerStatistic.movablePositions.computeIfAbsent(movableType, key -> new ArrayList<>()).add(movablePosition);
 
 			if (movableType == BEARER && movable.getAction() == EMovableAction.NO_ACTION) {
 				playerStatistics[movablePlayerId].joblessBearerPositions.add(movable.getPosition());
@@ -553,6 +550,14 @@ public class AiStatistics {
 		return landscapeGrid.getBlockedPartitionAt(x, y) == playerStatistics[playerId].blockedPartitionId;
 	}
 
+	public List<ShortPoint2D> getPositionsOfMovablesWithTypesForPlayer(byte playerId, Set<EMovableType> movableTypes) {
+		List<ShortPoint2D> movablePositions = new ArrayList<>();
+		for(EMovableType movableType : movableTypes) {
+			movablePositions.addAll(getPositionsOfMovablesWithTypeForPlayer(playerId, movableType));
+		}
+		return movablePositions;
+	}
+
 	public List<ShortPoint2D> getPositionsOfMovablesWithTypeForPlayer(byte playerId, EMovableType movableType) {
 		if (!playerStatistics[playerId].movablePositions.containsKey(movableType)) {
 			return Collections.emptyList();
@@ -566,7 +571,7 @@ public class AiStatistics {
 
 	public int getCountOfMovablesOfPlayer(IPlayer player, Set<EMovableType> types) {
 		byte playerId = player.getPlayerId();
-		return stream(types).mapToInt(type -> getPositionsOfMovablesWithTypeForPlayer(playerId, type).size()).sum();
+		return types.stream().mapToInt(type -> getPositionsOfMovablesWithTypeForPlayer(playerId, type).size()).sum();
 	}
 
 	public int getTotalNumberOfBuildingTypeForPlayer(EBuildingType type, byte playerId) {
@@ -668,7 +673,7 @@ public class AiStatistics {
 		return aiMapInformation.wasFishNearByAtGameStart[civilisation.ordinal].get(position.x * partitionsGrid.getWidth() + position.y);
 	}
 
-	ILogicMovable getNearestSwordsmanOf(ShortPoint2D targetPosition, byte playerId) {
+	public ILogicMovable getNearestSwordsmanOf(ShortPoint2D targetPosition, byte playerId) {
 		List<ShortPoint2D> soldierPositions = getPositionsOfMovablesWithTypeForPlayer(playerId, SWORDSMAN_L3);
 		if (soldierPositions.size() == 0) {
 			soldierPositions = getPositionsOfMovablesWithTypeForPlayer(playerId, SWORDSMAN_L2);
@@ -705,7 +710,7 @@ public class AiStatistics {
 			return points;
 		}
 
-		Collections.sort(points, Comparators.comparingInt(o -> o.getOnGridDistTo(referencePoint)));
+		points.sort(Comparator.comparingInt(o -> o.getOnGridDistTo(referencePoint)));
 
 		return points.subList(0, amountOfPointsToDetect);
 	}
@@ -736,11 +741,11 @@ public class AiStatistics {
 
 	private List<IPlayer> getEnemiesOf(IPlayer player) {
 		byte teamId = player.getTeamId();
-		return stream(players).filter(currPlayer -> currPlayer.getTeamId() != teamId).collect(Collectors.toList());
+		return players.stream().filter(currPlayer -> currPlayer.getTeamId() != teamId).collect(Collectors.toList());
 	}
 
 	public List<IPlayer> getAliveEnemiesOf(IPlayer player) {
-		return stream(getEnemiesOf(player)).filter(this::isAlive).collect(Collectors.toList());
+		return getEnemiesOf(player).stream().filter(this::isAlive).collect(Collectors.toList());
 	}
 
 	public static ShortPoint2D calculateAveragePointFromList(List<ShortPoint2D> points) {
@@ -797,7 +802,7 @@ public class AiStatistics {
 		if (playerStatistics[playerId].threatenedBorder == null) {
 			AiPositions borderOfOtherPlayers = new AiPositions();
 
-			stream(players)
+			players.stream()
 					.filter(currPlayer -> currPlayer.playerId != playerId)
 					.filter(this::isAlive)
 					.forEach(currPlayer -> borderOfOtherPlayers.addAllNoCollision(getBorderIngestibleByPioneersOf(currPlayer.playerId)));

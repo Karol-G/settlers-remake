@@ -1,7 +1,5 @@
 package jsettlers.main.android.mainmenu.gamesetup;
 
-import static java8.util.stream.StreamSupport.stream;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,7 +9,7 @@ import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
 
 import java.util.stream.Stream;
-import java8.util.J8Arrays;
+import java.util.Arrays;
 import jsettlers.common.ai.EPlayerType;
 import jsettlers.common.player.ECivilisation;
 import jsettlers.logic.map.loading.EMapStartResources;
@@ -38,7 +36,7 @@ public abstract class MapSetupViewModel extends ViewModel implements PositionCha
 	protected final List<PlayerSlotPresenter> playerSlotPresenters;
 
 	private final MutableLiveData<PlayerCount[]> playerCountOptions = new MutableLiveData<>();
-	private final MutableLiveData<PlayerCount> playerCount = new MutableLiveData<>();
+	protected final MutableLiveData<PlayerCount> playerCount = new MutableLiveData<>();
 	private final MutableLiveData<StartResources[]> startResourcesOptions = new MutableLiveData<>();
 	private final MutableLiveData<StartResources> startResources = new MutableLiveData<>();
 	private final MutableLiveData<Peacetime[]> peaceTimeOptions = new MutableLiveData<>();
@@ -64,7 +62,7 @@ public abstract class MapSetupViewModel extends ViewModel implements PositionCha
 		title.setValue(mapLoader.getMapName());
 
 		playerSlots.addSource(playerCount, playerCount -> {
-			playerSlots.setValue(stream(playerSlotPresenters)
+			playerSlots.setValue(playerSlotPresenters.stream()
 					.limit(playerCount.getNumberOfPlayers())
 					.toArray(PlayerSlotPresenter[]::new));
 		});
@@ -246,7 +244,7 @@ public abstract class MapSetupViewModel extends ViewModel implements PositionCha
 	}
 
 	private StartResources[] startResourcesOptions() {
-		return J8Arrays.stream(EMapStartResources.values())
+		return Arrays.stream(EMapStartResources.values())
 				.map(StartResources::new)
 				.toArray(StartResources[]::new);
 	}

@@ -10,13 +10,16 @@ import jsettlers.common.buildings.IBuilding;
 import jsettlers.common.buildings.IBuildingMaterial;
 import jsettlers.common.mapobject.EMapObjectType;
 import jsettlers.common.mapobject.IArrowMapObject;
+import jsettlers.common.mapobject.IMannaBowlObject;
 import jsettlers.common.mapobject.IMapObject;
 import jsettlers.common.mapobject.IStackMapObject;
 import jsettlers.common.material.EMaterialType;
 import jsettlers.common.material.EPriority;
 import jsettlers.common.movable.EDirection;
+import jsettlers.common.movable.IShipInConstruction;
 import jsettlers.common.player.ECivilisation;
 import jsettlers.common.player.IPlayer;
+import jsettlers.common.player.IPlayerable;
 import jsettlers.common.position.ShortPoint2D;
 import jsettlers.common.selectable.ESelectionType;
 import jsettlers.logic.map.grid.objects.AbstractHexMapObject;
@@ -140,14 +143,29 @@ public class HiddenMapObject implements IMapObject, Serializable {
 		}
 	}
 
-	public static class HiddenBuilding extends HiddenMapObject implements IBuilding, IBuilding.IMill, IBuilding.ISoundRequestable {
+	public static class HiddenPlayerableMapObject extends HiddenMapObject implements IPlayerable {
+
+		private final IPlayer player;
+
+		public HiddenPlayerableMapObject(AbstractHexMapObject original) {
+			super(original);
+
+			player = ((IPlayerable) original).getPlayer();
+		}
+
+		@Override
+		public IPlayer getPlayer() {
+			return player;
+		}
+	}
+
+	public static class HiddenBuilding extends HiddenPlayerableMapObject implements IBuilding, IBuilding.IMill, IBuilding.ISoundRequestable {
 
 		private static final long serialVersionUID = 1L;
 
 		private final EBuildingType type;
 		private final ECivilisation civilisation;
 		private final boolean occupied;
-		private final IPlayer player;
 		private final ShortPoint2D position;
 
 		public HiddenBuilding(AbstractHexMapObject original) {
@@ -157,7 +175,6 @@ public class HiddenMapObject implements IMapObject, Serializable {
 			type = originalBuilding.getBuildingVariant().getType();
 			civilisation = originalBuilding.getBuildingVariant().getCivilisation();
 			occupied = originalBuilding.isOccupied();
-			player = originalBuilding.getPlayer();
 			position = originalBuilding.getPosition();
 		}
 
@@ -202,11 +219,6 @@ public class HiddenMapObject implements IMapObject, Serializable {
 		}
 
 		@Override
-		public IPlayer getPlayer() {
-			return player;
-		}
-
-		@Override
 		public ShortPoint2D getPosition() {
 			return position;
 		}
@@ -243,6 +255,40 @@ public class HiddenMapObject implements IMapObject, Serializable {
 		@Override
 		public boolean isSoundPlayed() {
 			return false;
+		}
+	}
+
+	public static class HiddenMannaBowlObject extends HiddenMapObject implements IMannaBowlObject {
+
+		private final ECivilisation civilisation;
+
+		public HiddenMannaBowlObject(AbstractHexMapObject original) {
+			super(original);
+
+			this.civilisation = ((IMannaBowlObject) original).getCivilisation();
+		}
+
+		@Override
+		public ECivilisation getCivilisation() {
+			return civilisation;
+		}
+	}
+
+	public static class HiddenShipInConstructionObject extends HiddenPlayerableMapObject implements IShipInConstruction {
+
+		private final EDirection direction;
+
+		public HiddenShipInConstructionObject(AbstractHexMapObject original) {
+			super(original);
+
+			IShipInConstruction shipInConstruction = (IShipInConstruction) original;
+
+			this.direction = shipInConstruction.getDirection();
+		}
+
+		@Override
+		public EDirection getDirection() {
+			return direction;
 		}
 	}
 }
