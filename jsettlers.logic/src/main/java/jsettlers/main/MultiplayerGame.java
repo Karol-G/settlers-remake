@@ -14,12 +14,13 @@
  *******************************************************************************/
 package jsettlers.main;
 
-import static java8.util.stream.StreamSupport.stream;
-
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import jsettlers.common.ai.EPlayerType;
 import jsettlers.common.menu.ENetworkMessage;
@@ -36,6 +37,7 @@ import jsettlers.common.player.ECivilisation;
 import jsettlers.common.utils.collections.ChangingList;
 import jsettlers.logic.map.loading.MapLoader;
 import jsettlers.logic.map.loading.list.MapList;
+import jsettlers.logic.player.InitialGameState;
 import jsettlers.logic.player.PlayerSetting;
 import jsettlers.main.datatypes.MultiplayerPlayer;
 import jsettlers.main.datatypes.MultiplayerSlot;
@@ -67,6 +69,7 @@ public class MultiplayerGame {
 	private IMultiplayerListener multiplayerListener;
 	private IChatMessageListener chatMessageListener;
 	private boolean iAmTheHost = false;
+	private int maxPlayers;
 
 	public MultiplayerGame(AsyncNetworkClientConnector networkClientFactory) {
 		this.networkClientFactory = networkClientFactory;
@@ -133,32 +136,36 @@ public class MultiplayerGame {
 			long randomSeed = packet.getRandomSeed();
 			PlayerSetting[] playerSettings = determinePlayerSettings();
 			byte ownPlayerId = calculateOwnPlayerId();
+			// TODO start resources
+			InitialGameState initialGameState = new InitialGameState(ownPlayerId, playerSettings, randomSeed);
 
-			JSettlersGame game = new JSettlersGame(mapLoader, randomSeed, networkClient.getNetworkConnector(), ownPlayerId, playerSettings);
+			JSettlersGame game = new JSettlersGame(mapLoader, networkClient.getNetworkConnector(), initialGameState);
 
 			multiplayerListener.gameIsStarting(game.start());
 		};
 	}
 
 	private PlayerSetting[] determinePlayerSettings() {
-		return slotList.getItems().stream().sorted(Comparator.comparingInt(IMultiplayerSlot::getPosition))
+		Map<Byte, PlayerSetting> playerSettings = slotList.getItems().stream().sorted(Comparator.comparingInt(IMultiplayerSlot::getPosition))
 				.map(slot -> {
+					PlayerSetting playerSetting;
 					if(iAmTheHost) {
-						return new PlayerSetting(slot.getType(), slot.getCivilisation(), slot.getTeam());
+						playerSetting = new PlayerSetting(slot.getType(), slot.getCivilisation(), slot.getTeam());
 					} else {
-						return new PlayerSetting(EPlayerType.HUMAN, slot.getCivilisation(), slot.getTeam());
+						playerSetting = new PlayerSetting(EPlayerType.HUMAN, slot.getCivilisation(), slot.getTeam());
 					}
-				}).toArray(PlayerSetting[]::new);
+
+					return Map.entry(slot.getPosition(), playerSetting);
+				}).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		return IntStream.range(0, maxPlayers).mapToObj(i -> playerSettings.computeIfAbsent((byte) i, v -> new PlayerSetting())).toArray(PlayerSetting[]::new);
 	}
 
 	private byte calculateOwnPlayerId() {
 		String myId = networkClient.getPlayerInfo().getId();
-		byte i = 0;
 		for (IMultiplayerSlot currSlot : slotList.getItems()) {
 			if(currSlot.getPlayer() != null && currSlot.getPlayer().getId().equals(myId)) {
-				return i;
+				return currSlot.getPosition();
 			}
-			i++;
 		}
 		throw new RuntimeException("Wasn't able to find my id!");
 	}
@@ -178,6 +185,7 @@ public class MultiplayerGame {
 	}
 
 	void updateLists(MatchInfoPacket matchInfo) {
+		maxPlayers = matchInfo.getMaxPlayers();
 		List<IMultiplayerPlayer> players = new LinkedList<>();
 		for (PlayerInfoPacket playerInfoPacket : matchInfo.getPlayers()) {
 			players.add(new MultiplayerPlayer(playerInfoPacket));
@@ -271,6 +279,11 @@ public class MultiplayerGame {
 			}
 
 			@Override
+			public void setPlayerCount(int playerCount) {
+				networkClient.setPlayerCount(playerCount);
+			}
+
+			@Override
 			public void setMultiplayerListener(IMultiplayerListener multiplayerListener) {
 				MultiplayerGame.this.multiplayerListener = multiplayerListener;
 			}
@@ -301,10 +314,7 @@ public class MultiplayerGame {
 			}
 
 			private boolean areAllPlayersReady() {
-				return !stream(playersList.getItems())
-						.filter(player -> !player.isReady())
-						.findAny()
-						.isPresent();
+				return playersList.getItems().stream().allMatch(IMultiplayerPlayer::isReady);
 			}
 		};
 	}

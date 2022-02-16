@@ -20,17 +20,20 @@ import jsettlers.logic.movable.interfaces.ILogicMovable;
 import jsettlers.logic.player.Player;
 import jsettlers.network.client.interfaces.ITaskScheduler;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.Vector;
-
-import static java8.util.stream.StreamSupport.stream;
+import java.util.stream.Stream;
 
 public class ArmyFramework {
 	final AiStatistics aiStatistics;
 	private final Player player;
 	final MovableGrid movableGrid;
 	final ITaskScheduler taskScheduler;
+
+	protected final List<ArmyModule> modules = new ArrayList<>();
 
 	ArmyFramework(AiStatistics aiStatistics, Player player, MovableGrid movableGrid, ITaskScheduler taskScheduler) {
 		this.aiStatistics = aiStatistics;
@@ -39,6 +42,13 @@ public class ArmyFramework {
 		this.taskScheduler = taskScheduler;
 	}
 
+	void addModule(ArmyModule module) {
+		modules.add(module);
+	}
+
+	public <T extends ArmyModule> Stream<T> findModules(Class<T> modClazz) {
+		return modules.stream().filter(modClazz::isInstance).map(modClazz::cast);
+	}
 
 	boolean existsAliveEnemy() {
 		return !aiStatistics.getAliveEnemiesOf(player).isEmpty();
@@ -74,13 +84,14 @@ public class ArmyFramework {
 		sendTroopsToById(attackerIds, target, soldiersWithOrders, moveToType);
 	}
 
-	void sendTroopsToById(List<Integer> attackerIds, ShortPoint2D target, Set<Integer> soldiersWithOrders, EMoveToType moveToType) {
+	void sendTroopsToById(Collection<Integer> attackerIds, ShortPoint2D target, Set<Integer> soldiersWithOrders, EMoveToType moveToType) {
+		List<Integer> ids = new ArrayList<>(attackerIds);
 		if(soldiersWithOrders != null) {
-			attackerIds.removeAll(soldiersWithOrders);
+			ids.removeAll(soldiersWithOrders);
 			soldiersWithOrders.addAll(attackerIds);
 		}
 
-		taskScheduler.scheduleTask(new MoveToGuiTask(player.playerId, target, attackerIds, moveToType));
+		taskScheduler.scheduleTask(new MoveToGuiTask(player.playerId, target, ids, moveToType));
 	}
 
 
@@ -97,16 +108,6 @@ public class ArmyFramework {
 		}
 
 		return weakestEnemyPlayer;
-	}
-
-
-	void ensureAllTowersFullyMounted() {
-		stream(aiStatistics.getBuildingPositionsOfTypesForPlayer(EBuildingType.MILITARY_BUILDINGS, player.playerId))
-				.map(aiStatistics::getBuildingAt)
-				.filter(building -> building instanceof OccupyingBuilding)
-				.map(building -> (OccupyingBuilding) building)
-				.filter(building -> !building.isSetToBeFullyOccupied())
-				.forEach(building -> taskScheduler.scheduleTask(new ChangeTowerSoldiersGuiTask(player.playerId, building.getPosition(), ChangeTowerSoldiersGuiTask.EChangeTowerSoldierTaskType.FULL, null)));
 	}
 
 	boolean canUpgradeSoldiers(ESoldierType type) {

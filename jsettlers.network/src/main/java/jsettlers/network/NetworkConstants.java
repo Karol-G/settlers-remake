@@ -114,6 +114,7 @@ public final class NetworkConstants {
 		CIVILISATION_CHANGED,
 		POSITION_CHANGED,
 		TYPE_CHANGED,
+		PLAYER_COUNT_CHANGED,
 		;
 
 		private static final ENetworkMessage[] values = ENetworkMessage.values();
@@ -169,6 +170,7 @@ public final class NetworkConstants {
 		CHANGE_TEAM,
 		CHANGE_PLAYER_TYPE,
 		CHANGE_POSITION,
+		CHANGE_PLAYER_COUNT,
 		;
 
 		private static final ENetworkKey[] values = ENetworkKey.values();

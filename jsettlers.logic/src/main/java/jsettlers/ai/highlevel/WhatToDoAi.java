@@ -23,8 +23,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import java8.util.stream.Collectors;
 import jsettlers.ai.army.ArmyGeneral;
 import jsettlers.ai.construction.ConstructionPositionFinder;
 import jsettlers.ai.economy.EconomyMinister;
@@ -46,13 +46,11 @@ import jsettlers.input.tasks.EGuiAction;
 import jsettlers.input.tasks.MoveToGuiTask;
 import jsettlers.input.tasks.WorkAreaGuiTask;
 import jsettlers.logic.buildings.Building;
-import jsettlers.logic.buildings.military.occupying.OccupyingBuilding;
 import jsettlers.logic.map.grid.MainGrid;
 import jsettlers.logic.map.grid.movable.MovableGrid;
 import jsettlers.logic.movable.interfaces.ILogicMovable;
 import jsettlers.network.client.interfaces.ITaskScheduler;
 
-import static java8.util.stream.StreamSupport.stream;
 import static jsettlers.ai.highlevel.AiBuildingConstants.COAL_MINE_TO_IRON_MINE_RATIO;
 import static jsettlers.ai.highlevel.AiBuildingConstants.COAL_MINE_TO_SMITH_RATIO;
 import static jsettlers.ai.highlevel.AiBuildingConstants.FARM_TO_BAKER_RATIO;
@@ -151,7 +149,7 @@ class WhatToDoAi implements IWhatToDoAi {
 				playerId);
 		resourcePioneers = new PioneerGroup(RESOURCE_PIONEER_GROUP_COUNT);
 		broadenerPioneers = new PioneerGroup(BROADEN_PIONEER_GROUP_COUNT);
-		List<Integer> allPioneers = stream(aiStatistics.getPositionsOfMovablesWithTypeForPlayer(playerId, EMovableType.PIONEER))
+		List<Integer> allPioneers = aiStatistics.getPositionsOfMovablesWithTypeForPlayer(playerId, EMovableType.PIONEER).stream()
 				.map(pos -> movableGrid.getMovableAt(pos.x, pos.y))
 				.map(ILogicMovable::getID)
 				.collect(Collectors.toList());
@@ -169,7 +167,7 @@ class WhatToDoAi implements IWhatToDoAi {
 
 	@Override
 	public void applyLightRules() {
-		armyGeneral.applyLightRules(null);
+		armyGeneral.applyLightRules(new HashSet<>());
 	}
 
 	@Override
@@ -182,7 +180,6 @@ class WhatToDoAi implements IWhatToDoAi {
 			commandPioneers();
 			buildBuildings();
 			Set<Integer> soldiersWithOrders = new HashSet<>();
-			occupyMilitaryBuildings(soldiersWithOrders);
 			armyGeneral.applyHeavyRules(soldiersWithOrders);
 			sendGeologists();
 		}
@@ -247,21 +244,6 @@ class WhatToDoAi implements IWhatToDoAi {
 		return mainGrid.getMovableGrid().getMovableAt(point.x, point.y);
 	}
 
-	private void occupyMilitaryBuildings(Set<Integer> soldiersWithOrders) {
-
-		for (ShortPoint2D militaryBuildingPosition : aiStatistics.getBuildingPositionsOfTypesForPlayer(EBuildingType.MILITARY_BUILDINGS, playerId)) {
-			OccupyingBuilding militaryBuilding = (OccupyingBuilding) aiStatistics.getBuildingAt(militaryBuildingPosition);
-			if (!militaryBuilding.isOccupied()) {
-				ShortPoint2D door = militaryBuilding.getDoor();
-				ILogicMovable soldier = aiStatistics.getNearestSwordsmanOf(door, playerId);
-				if (soldier != null && militaryBuilding.getPosition().getOnGridDistTo(soldier.getPosition()) > TOWER_SEARCH_SOLDIERS_RADIUS) {
-					soldiersWithOrders.add(soldier.getID());
-					sendMovableTo(soldier, door, EMoveToType.FORCED);
-				}
-			}
-		}
-	}
-
 	private void sendMovableTo(ILogicMovable movable, ShortPoint2D target, EMoveToType moveToType) {
 		if (movable != null) {
 			taskScheduler.scheduleTask(new MoveToGuiTask(playerId, target, Collections.singletonList(movable.getID()), moveToType));
@@ -309,7 +291,7 @@ class WhatToDoAi implements IWhatToDoAi {
 				}
 			}
 
-			stream(aiStatistics.getBuildingPositionsOfTypeForPlayer(LUMBERJACK, playerId))
+			aiStatistics.getBuildingPositionsOfTypeForPlayer(LUMBERJACK, playerId).stream()
 					.filter(lumberJackPosition -> aiStatistics.getBuildingAt(lumberJackPosition).cannotWork())
 					.forEach(lumberJackPosition -> taskScheduler.scheduleTask(new SimpleBuildingGuiTask(EGuiAction.DESTROY_BUILDING, playerId, lumberJackPosition)));
 
@@ -489,7 +471,7 @@ class WhatToDoAi implements IWhatToDoAi {
 		resourcePioneers.clear();
 		List<ShortPoint2D> pioneers = aiStatistics.getPositionsOfMovablesWithTypeForPlayer(playerId, EMovableType.PIONEER);
 		if (!pioneers.isEmpty()) {
-			List<Integer> pioneerIds = stream(pioneers)
+			List<Integer> pioneerIds = pioneers.stream()
 					.limit(numberOfPioneers)
 					.map(pioneerPosition -> mainGrid.getMovableGrid().getMovableAt(pioneerPosition.x, pioneerPosition.y).getID())
 					.collect(Collectors.toList());
