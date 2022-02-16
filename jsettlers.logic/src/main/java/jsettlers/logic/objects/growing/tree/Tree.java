@@ -29,7 +29,7 @@ import jsettlers.logic.objects.growing.GrowingObject;
 public class Tree extends GrowingObject implements ISoundable {
 	private static final long serialVersionUID = 8241068714975746824L;
 
-	public static final float GROWTH_DURATION = 7 * 60 *0.5; // edit by lukas. Original: 7 * 60 
+	public static final float GROWTH_DURATION = 7 * 30; // edit by lukas. Original: 7 * 60
 	public static final float DECOMPOSE_DURATION = 2 * 60;
 
 	private static final RelativePoint[] BLOCKED = new RelativePoint[] { new RelativePoint(0, 0) };
